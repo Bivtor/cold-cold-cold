@@ -1,6 +1,6 @@
 <div align="center">
 <!-- Title -->
-<h1>🎯 Cold Email Pipeline</h1>
+<h1>Cold Email Pipeline</h1>
 
 <!-- Badges -->
 <p>
@@ -19,7 +19,7 @@
 - [About the Project](#about-the-project)
 - [Summary](#summary)
 - [Tech Stack](#tech-stack)
-- [Content Management](#Management)
+- [Content Management](#management)
 - [Acknowledgements](#acknowledgements)
 
 <!-- About the Project -->
