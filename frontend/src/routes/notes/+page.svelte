@@ -43,7 +43,12 @@
 			const result = await response.json();
 			
 			if (result.success) {
-				notes = result.data;
+				// Convert date strings to Date objects
+				notes = result.data.map((note: any) => ({
+					...note,
+					createdAt: new Date(note.createdAt),
+					updatedAt: new Date(note.updatedAt)
+				}));
 				updateFilteredNotes();
 				updateCategories();
 			} else {

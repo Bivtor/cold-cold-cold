@@ -1,5 +1,5 @@
-// Web scraping services
-export { WebScraperService, webScraperService } from './WebScraperService.js';
+// Web scraping services - Note: WebScraperService is server-side only
+// Use ScrapingClient for client-side scraping via API
 export type { ScrapingResult } from './WebScraperService.js';
 
 // Claude AI services
@@ -13,8 +13,8 @@ export { ErrorHandler, ErrorCode, retryWithBackoff } from './ErrorHandler.js';
 export { FallbackService } from './FallbackService.js';
 export type { ManualBusinessInput, FallbackResult } from './FallbackService.js';
 
-// Business data orchestration
-export { BusinessDataService, businessDataService } from './BusinessDataService.js';
+// Business data orchestration - Note: BusinessDataService is server-side only
+// It uses WebScraperService internally
 export type { BusinessDataRequest, BusinessDataResult } from './BusinessDataService.js';
 
 // Zoho email services

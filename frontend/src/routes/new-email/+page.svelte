@@ -3,7 +3,8 @@
 	import type { ScrapedData, EmailGenerationRequest, EmailTemplateData, RenderedEmail } from '$lib/types/index.js';
 	import { EmailTemplateService, NotificationService } from '$lib/services/index.js';
 	import { loading, LoadingOperations } from '$lib/stores/loading.js';
-	import type { ScrapingResult, ClaudeServiceResult } from '$lib/services/index.js';
+	import type { ScrapingResult } from '$lib/services/WebScraperService.js';
+	import type { ClaudeServiceResult } from '$lib/services/index.js';
 
 	// Form state
 	let manualContent = '';
