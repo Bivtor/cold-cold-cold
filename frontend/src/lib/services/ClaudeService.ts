@@ -137,7 +137,7 @@ export class ClaudeService {
         const prompt = this.buildEmailGenerationPrompt(request);
 
         const response = await this.client!.messages.create({
-            model: 'claude-3-haiku-20240307',
+            model: 'claude-3-5-sonnet-20241022',
             max_tokens: 1000,
             temperature: 0.7,
             messages: [
@@ -167,7 +167,7 @@ export class ClaudeService {
         const prompt = this.buildEmailRefinementPrompt(request);
 
         const response = await this.client!.messages.create({
-            model: 'claude-3-haiku-20240307',
+            model: 'claude-3-5-sonnet-20241022',
             max_tokens: 1000,
             temperature: 0.7,
             messages: [
@@ -194,22 +194,22 @@ export class ClaudeService {
      * Build the prompt for email generation
      */
     private buildEmailGenerationPrompt(request: EmailGenerationRequest): string {
-        let prompt = `You are an expert at writing personalized cold emails that get responses. Generate a professional, engaging cold email based on the following information:
+        let prompt = `Write a personalized cold email based on this info:
 
 BUSINESS CONTEXT:
 ${request.businessContext}
 
-PERSONAL NOTES/ANALYSIS:
+PERSONAL NOTES:
 ${request.personalNotes}
 
-PROMPT TEMPLATE:
+TEMPLATE:
 ${request.promptTemplate}
 `;
 
         // Add manual content if provided (primary input method)
         if (request.manualContent) {
             prompt += `
-MANUAL BUSINESS INFORMATION:
+BUSINESS INFO:
 ${request.manualContent}
 `;
         }
@@ -217,14 +217,14 @@ ${request.manualContent}
         // Add scraped data if available (secondary input method)
         if (request.scrapedData) {
             prompt += `
-SCRAPED WEBSITE DATA:
-Business Name: ${request.scrapedData.businessName}
+SCRAPED DATA:
+Business: ${request.scrapedData.businessName}
 Description: ${request.scrapedData.description}
 Services: ${request.scrapedData.services.join(', ')}
 `;
 
             if (request.scrapedData.contactInfo.email) {
-                prompt += `Contact Email: ${request.scrapedData.contactInfo.email}
+                prompt += `Email: ${request.scrapedData.contactInfo.email}
 `;
             }
 
@@ -236,15 +236,20 @@ Services: ${request.scrapedData.services.join(', ')}
 
         prompt += `
 REQUIREMENTS:
-1. Write a personalized cold email that demonstrates you've researched the business
-2. Keep it concise (150-250 words)
-3. Include a clear value proposition
-4. End with a specific, low-commitment call to action
-5. Use a professional but conversational tone
-6. Make it feel personal, not templated
-7. Focus on how you can help solve their potential problems or improve their business
+- Keep it 150-250 words
+- Show you've researched them
+- Clear value proposition
+- Casual, friendly tone (not stiff or corporate)
+- Personal, not templated
+- End with a low-commitment call to action
+- DO NOT include a sign-off (no "Best regards", "Cheers", etc.)
 
-Return ONLY the email content without any additional formatting, explanations, or metadata. Do not include subject line - just the email body.`;
+FORMAT:
+- Return as HTML
+- Use <br><br> for paragraph breaks
+- Use simple HTML for emphasis (<strong>, <em>) if needed
+- NO CSS styling
+- Return ONLY the email body (no subject line, no explanations)`;
 
         return prompt;
     }
@@ -253,7 +258,7 @@ Return ONLY the email content without any additional formatting, explanations, o
      * Build the prompt for email refinement
      */
     private buildEmailRefinementPrompt(request: EmailRefinementRequest): string {
-        let prompt = `Please refine the following cold email based on the feedback provided:
+        let prompt = `Refine this cold email based on the feedback:
 
 ORIGINAL EMAIL:
 ${request.originalEmail}
@@ -264,20 +269,26 @@ ${request.feedback}
 
         if (request.context) {
             prompt += `
-ADDITIONAL CONTEXT:
+CONTEXT:
 ${request.context}
 `;
         }
 
         prompt += `
 REQUIREMENTS:
-1. Address the specific feedback while maintaining the email's core message
-2. Keep it concise (150-250 words)
-3. Maintain a professional but conversational tone
-4. Ensure the email still feels personal and researched
-5. Preserve any good elements from the original email
+- Address the feedback while keeping the core message
+- Keep it 150-250 words
+- Casual, friendly tone
+- Keep it personal and researched
+- Preserve good elements from the original
+- DO NOT include a sign-off (no "Best regards", "Cheers", etc.)
 
-Return ONLY the refined email content without any additional formatting, explanations, or metadata. Do not include subject line - just the email body.`;
+FORMAT:
+- Return as HTML
+- Use <br><br> for paragraph breaks
+- Use simple HTML for emphasis (<strong>, <em>) if needed
+- NO CSS styling
+- Return ONLY the email body (no subject line, no explanations)`;
 
         return prompt;
     }
@@ -314,7 +325,7 @@ REQUIREMENTS:
 Return ONLY the subject line without quotes or additional text.`;
 
             const response = await this.client!.messages.create({
-                model: 'claude-3-haiku-20240307',
+                model: 'claude-sonnet-4-5-20250929',
                 max_tokens: 100,
                 temperature: 0.7,
                 messages: [
