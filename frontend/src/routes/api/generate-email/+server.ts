@@ -1,10 +1,14 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { claudeService } from '$lib/services/index.js';
+import { ClaudeService } from '$lib/services/index.js';
+import { serverConfig } from '$lib/utils/env.server.js';
 import type { EmailGenerationRequest } from '$lib/types/index.js';
 
 export const POST: RequestHandler = async ({ request }) => {
     try {
+        // Initialize ClaudeService with API key from server config
+        const claudeService = new ClaudeService(serverConfig.claude.apiKey);
+
         const requestData: EmailGenerationRequest = await request.json();
 
         // Validate required fields

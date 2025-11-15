@@ -41,6 +41,10 @@
 	let showContactFrequencyModal = false;
 	let selectedBusinessId: number | null = null;
 	let contactFrequencyData: any = null;
+	
+	// HTML editing state
+	let isEditingHtml = false;
+	let editableHtmlContent = '';
 
 	// Analytics data
 	let analyticsData: any = null;
@@ -158,7 +162,8 @@
 
 	function formatDate(date: Date | string) {
 		const d = typeof date === 'string' ? new Date(date) : date;
-		return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		return d.toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' }) + ' ' + 
+		       d.toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit' });
 	}
 
 	function getStatusBadgeClass(status: string) {
@@ -169,6 +174,8 @@
 				return 'bg-yellow-100 text-yellow-800';
 			case 'failed':
 				return 'bg-red-100 text-red-800';
+			case 'unsent':
+				return 'bg-purple-100 text-purple-800';
 			case 'good_response':
 				return 'bg-blue-100 text-blue-800';
 			case 'bad_response':
@@ -182,6 +189,8 @@
 
 	function getStatusLabel(status: string) {
 		switch (status) {
+			case 'unsent':
+				return 'Unsent';
 			case 'good_response':
 				return 'Good Response';
 			case 'bad_response':
@@ -241,6 +250,8 @@
 			
 			if (data.success) {
 				selectedEmail = data.email;
+				editableHtmlContent = data.email.htmlContent;
+				isEditingHtml = false;
 				showEmailModal = true;
 			} else {
 				const error = new Error(data.error || 'Failed to load email');
@@ -278,6 +289,82 @@
 		selectedEmail = null;
 		selectedBusinessId = null;
 		contactFrequencyData = null;
+		isEditingHtml = false;
+		editableHtmlContent = '';
+	}
+	
+	function copyHtmlToClipboard() {
+		if (editableHtmlContent) {
+			navigator.clipboard.writeText(editableHtmlContent).then(() => {
+				NotificationService.showSuccess('Copied!', 'HTML content copied to clipboard');
+			}).catch(err => {
+				NotificationService.handleError(err, 'clipboard');
+			});
+		}
+	}
+	
+	async function saveHtmlChanges() {
+		if (!selectedEmail) return;
+		
+		loading.start(LoadingOperations.UPDATING_STATUS);
+		
+		try {
+			const response = await fetch(`/api/emails/${selectedEmail.id}`, {
+				method: 'PATCH',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ htmlContent: editableHtmlContent })
+			});
+			
+			const data = await response.json();
+			if (data.success) {
+				selectedEmail.htmlContent = editableHtmlContent;
+				// Update in the emails array
+				emails = emails.map(email => 
+					email.id === selectedEmail!.id 
+						? { ...email, htmlContent: editableHtmlContent }
+						: email
+				);
+				isEditingHtml = false;
+				NotificationService.showSuccess('Saved!', 'Email HTML content updated successfully');
+			} else {
+				const error = new Error(data.error || 'Failed to update email content');
+				NotificationService.handleError(error, 'database');
+			}
+		} catch (err) {
+			NotificationService.handleError(err as Error, 'database');
+		} finally {
+			loading.stop(LoadingOperations.UPDATING_STATUS);
+		}
+	}
+
+	async function deleteEmail(emailId: number) {
+		if (!confirm('Are you sure you want to delete this email? This action cannot be undone.')) {
+			return;
+		}
+
+		loading.start(LoadingOperations.DELETING_EMAIL);
+
+		try {
+			const response = await fetch(`/api/emails/${emailId}`, {
+				method: 'DELETE'
+			});
+
+			const data = await response.json();
+			if (data.success) {
+				// Remove the email from the local array
+				emails = emails.filter(email => email.id !== emailId);
+				NotificationService.showSuccess('Email Deleted', 'The email has been deleted successfully');
+			} else {
+				const error = new Error(data.error || 'Failed to delete email');
+				NotificationService.handleError(error, 'database');
+			}
+		} catch (err) {
+			NotificationService.handleError(err as Error, 'database');
+		} finally {
+			loading.stop(LoadingOperations.DELETING_EMAIL);
+		}
 	}
 
 	// Group emails by business to show contact frequency
@@ -355,6 +442,7 @@
 						class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
 					>
 						<option value="">All</option>
+						<option value="unsent">Unsent</option>
 						<option value="no_response">No Response</option>
 						<option value="good_response">Good Response</option>
 						<option value="bad_response">Bad Response</option>
@@ -476,14 +564,14 @@
 				<!-- Timeline Chart (Simple) -->
 				{#if analyticsData.timeline.length > 0}
 					<div>
-						<h3 class="text-md font-medium text-gray-900 mb-3">Email Activity Timeline</h3>
-						<div class="flex items-end space-x-1 h-20 overflow-x-auto">
-							{#each analyticsData.timeline.slice(-30) as day}
-								<div class="flex flex-col items-center min-w-0">
+						<h3 class="text-md font-medium text-gray-900 mb-3 ">Email Activity Timeline</h3>
+						<div class="flex items-end justify-between space-x-1  pb-20">
+							{#each analyticsData.timeline as day}
+								<div class="flex flex-col items-center flex-1 min-w-0">
 									<div 
-										class="bg-blue-500 rounded-t" 
-										style="height: {Math.max(2, (day.total / Math.max(...analyticsData.timeline.map((d: any) => d.total))) * 60)}px; width: 8px;"
-										title="{day.date}: {day.total} emails, {day.sent} sent, {day.responses} responses"
+										class="bg-blue-500 rounded-t w-full max-w-[12px]" 
+										style="height: {Math.max(2, (day.total / Math.max(...analyticsData.timeline.map((d: any) => d.total))) * 100)}px;"
+										title="{new Date(day.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}: {day.total} emails, {day.sent} sent, {day.responses} responses"
 									></div>
 									<div class="text-xs text-gray-500 mt-1 transform rotate-45 origin-left whitespace-nowrap">
 										{new Date(day.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
@@ -528,6 +616,9 @@
 					<table class="min-w-full divide-y divide-gray-200">
 						<thead class="bg-gray-50">
 							<tr>
+								<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+									Actions
+								</th>
 								<th
 									class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
 									on:click={() => sortEmails('businessName')}
@@ -570,14 +661,38 @@
 										<span class="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
 									{/if}
 								</th>
-								<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-									Actions
-								</th>
 							</tr>
 						</thead>
 						<tbody class="bg-white divide-y divide-gray-200">
 							{#each emails as email (email.id)}
 								<tr class="hover:bg-gray-50">
+									<td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+										<button
+											class="text-blue-600 hover:text-blue-900 mr-3"
+											on:click={() => viewEmail(email.id)}
+										>
+											View
+										</button>
+										<button
+											class="text-purple-600 hover:text-purple-900 mr-3"
+											on:click={() => viewContactFrequency(email.businessId)}
+											title="View contact frequency for {email.businessName}"
+										>
+											Frequency
+										</button>
+										<button
+											class="text-red-600 hover:text-red-900 mr-3"
+											on:click={() => deleteEmail(email.id)}
+											title="Delete this email"
+										>
+											Delete
+										</button>
+										{#if businessContactFrequency[email.businessId]}
+											<span class="text-xs text-gray-500">
+												({businessContactFrequency[email.businessId].sentEmails} sent)
+											</span>
+										{/if}
+									</td>
 									<td class="px-6 py-4 whitespace-nowrap">
 										<div class="text-sm font-medium text-gray-900">{email.businessName}</div>
 									</td>
@@ -597,6 +712,7 @@
 											on:change={(e) => updateResponseStatus(email.id, (e.target as HTMLSelectElement).value)}
 											class="text-xs px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 {getStatusBadgeClass(email.responseStatus)}"
 										>
+											<option value="unsent">Unsent</option>
 											<option value="no_response">No Response</option>
 											<option value="good_response">Good Response</option>
 											<option value="bad_response">Bad Response</option>
@@ -607,26 +723,6 @@
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
 										{email.sentAt ? formatDate(email.sentAt) : '-'}
-									</td>
-									<td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-										<button
-											class="text-blue-600 hover:text-blue-900 mr-3"
-											on:click={() => viewEmail(email.id)}
-										>
-											View
-										</button>
-										<button
-											class="text-purple-600 hover:text-purple-900 mr-3"
-											on:click={() => viewContactFrequency(email.businessId)}
-											title="View contact frequency for {email.businessName}"
-										>
-											Frequency
-										</button>
-										{#if businessContactFrequency[email.businessId]}
-											<span class="text-xs text-gray-500">
-												({businessContactFrequency[email.businessId].sentEmails} sent)
-											</span>
-										{/if}
 									</td>
 								</tr>
 							{/each}
@@ -682,135 +778,221 @@
 			{/if}
 		</div>
 
-		<!-- Email View Modal -->
+		<!-- Email View Modal - Full Width -->
 		{#if showEmailModal && selectedEmail}
-			<!-- svelte-ignore a11y_click_events_have_key_events -->
+			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div 
-				class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" 
+				class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 overflow-y-auto" 
 				role="dialog" 
 				aria-modal="true" 
 				aria-labelledby="email-modal-title"
-				tabindex="-1"
-				on:click={closeModals}
+				tabindex="0"
 				on:keydown={(e) => e.key === 'Escape' && closeModals()}
 			>
-				<!-- svelte-ignore a11y_click_events_have_key_events -->
-				<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 				<div 
-					class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white" 
-					role="document"
-					on:click|stopPropagation
+					class="min-h-screen px-4 py-8"
 				>
-					<div class="mt-3">
-						<div class="flex items-center justify-between mb-4">
-							<h3 id="email-modal-title" class="text-lg font-medium text-gray-900">Email Details</h3>
-							<button
-								on:click={closeModals}
-								class="text-gray-400 hover:text-gray-600"
-								aria-label="Close email details modal"
-							>
-								<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-								</svg>
-							</button>
+					<div class="max-w-7xl mx-auto bg-white rounded-lg shadow-xl">
+						<div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-lg z-10">
+							<div class="flex items-center justify-between">
+								<h3 id="email-modal-title" class="text-2xl font-bold text-gray-900">Email Details</h3>
+								<button
+									on:click={closeModals}
+									class="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100"
+									aria-label="Close email details modal"
+								>
+									<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+									</svg>
+								</button>
+							</div>
+							<p class="text-sm text-gray-500 mt-1">Press ESC to close</p>
 						</div>
 						
-						<div class="space-y-4">
-							<div>
-								<div class="block text-sm font-medium text-gray-700">Business</div>
-								<p class="mt-1 text-sm text-gray-900">{selectedEmail.businessName}</p>
+						<div class="px-6 py-6">
+							<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+								<!-- Left Column - Email Info -->
+								<div class="lg:col-span-1 space-y-4">
+									<div class="bg-gray-50 p-4 rounded-lg">
+										<h4 class="text-sm font-semibold text-gray-700 mb-3">Email Information</h4>
+										
+										<div class="space-y-3">
+											<div>
+												<div class="text-xs font-medium text-gray-500">Business</div>
+												<p class="mt-1 text-sm text-gray-900">{selectedEmail.businessName}</p>
+											</div>
+											
+											<div>
+												<div class="text-xs font-medium text-gray-500">Subject</div>
+												<p class="mt-1 text-sm text-gray-900">{selectedEmail.subject}</p>
+											</div>
+											
+											<div>
+												<div class="text-xs font-medium text-gray-500">Send Status</div>
+												<span class="mt-1 inline-flex px-2 py-1 text-xs font-semibold rounded-full {getStatusBadgeClass(selectedEmail.sendStatus)}">
+													{getStatusLabel(selectedEmail.sendStatus)}
+												</span>
+											</div>
+											
+											<div>
+												<div class="text-xs font-medium text-gray-500">Response Status</div>
+												<span class="mt-1 inline-flex px-2 py-1 text-xs font-semibold rounded-full {getStatusBadgeClass(selectedEmail.responseStatus)}">
+													{getStatusLabel(selectedEmail.responseStatus)}
+												</span>
+											</div>
+											
+											<div>
+												<div class="text-xs font-medium text-gray-500">Created</div>
+												<p class="mt-1 text-sm text-gray-900">{formatDate(selectedEmail.createdAt)}</p>
+											</div>
+											
+											<div>
+												<div class="text-xs font-medium text-gray-500">Sent</div>
+												<p class="mt-1 text-sm text-gray-900">{selectedEmail.sentAt ? formatDate(selectedEmail.sentAt) : 'Not sent'}</p>
+											</div>
+											
+											{#if selectedEmail.personalNotes}
+												<div>
+													<div class="text-xs font-medium text-gray-500">Personal Notes</div>
+													<p class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{selectedEmail.personalNotes}</p>
+												</div>
+											{/if}
+										</div>
+									</div>
+									
+									<!-- Action Buttons -->
+									<div class="space-y-2">
+										<button
+											on:click={() => {
+												if (selectedEmail) {
+													deleteEmail(selectedEmail.id);
+													closeModals();
+												}
+											}}
+											class="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+										>
+											Delete Email
+										</button>
+										<button
+											on:click={closeModals}
+											class="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+										>
+											Close (ESC)
+										</button>
+									</div>
+								</div>
+								
+								<!-- Right Column - Email Preview & HTML Editor -->
+								<div class="lg:col-span-2 space-y-6">
+									<!-- Email Preview -->
+									<div>
+										<h4 class="text-lg font-semibold text-gray-900 mb-3">Email Preview</h4>
+										<div class="border border-gray-300 rounded-lg overflow-hidden bg-white">
+											<div class="bg-gray-100 px-4 py-2 border-b border-gray-300">
+												<p class="text-xs text-gray-600">Rendered Email</p>
+											</div>
+											<div class="p-6 max-h-96 overflow-y-auto">
+												{@html selectedEmail.htmlContent}
+											</div>
+										</div>
+									</div>
+									
+									<!-- HTML Source Editor -->
+									<div>
+										<div class="flex items-center justify-between mb-3">
+											<h4 class="text-lg font-semibold text-gray-900">HTML Source</h4>
+											<div class="flex space-x-2">
+												{#if isEditingHtml}
+													<button
+														on:click={() => {
+															editableHtmlContent = selectedEmail!.htmlContent;
+															isEditingHtml = false;
+														}}
+														class="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+													>
+														Cancel
+													</button>
+													<button
+														on:click={saveHtmlChanges}
+														disabled={$loading[LoadingOperations.UPDATING_STATUS]}
+														class="px-3 py-1 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
+													>
+														{$loading[LoadingOperations.UPDATING_STATUS] ? 'Saving...' : 'Save Changes'}
+													</button>
+												{:else}
+													<button
+														on:click={copyHtmlToClipboard}
+														class="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-1"
+													>
+														<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+														</svg>
+														<span>Copy HTML</span>
+													</button>
+													<button
+														on:click={() => isEditingHtml = true}
+														class="px-3 py-1 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+													>
+														Edit HTML
+													</button>
+												{/if}
+											</div>
+										</div>
+										
+										{#if isEditingHtml}
+											<textarea
+												bind:value={editableHtmlContent}
+												rows="20"
+												class="w-full px-4 py-3 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical"
+												placeholder="Edit HTML content..."
+											></textarea>
+											<p class="mt-2 text-xs text-gray-500">
+												Make your changes above and click "Save Changes" to update the email content.
+											</p>
+										{:else}
+											<div class="relative">
+												<pre class="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto max-h-96 overflow-y-auto text-sm"><code>{editableHtmlContent}</code></pre>
+											</div>
+										{/if}
+									</div>
+								</div>
 							</div>
-							
-							<div>
-								<div class="block text-sm font-medium text-gray-700">Subject</div>
-								<p class="mt-1 text-sm text-gray-900">{selectedEmail.subject}</p>
-							</div>
-							
-							<div class="grid grid-cols-2 gap-4">
-								<div>
-									<div class="block text-sm font-medium text-gray-700">Send Status</div>
-									<span class="mt-1 inline-flex px-2 py-1 text-xs font-semibold rounded-full {getStatusBadgeClass(selectedEmail.sendStatus)}">
-										{getStatusLabel(selectedEmail.sendStatus)}
-									</span>
-								</div>
-								<div>
-									<div class="block text-sm font-medium text-gray-700">Response Status</div>
-									<span class="mt-1 inline-flex px-2 py-1 text-xs font-semibold rounded-full {getStatusBadgeClass(selectedEmail.responseStatus)}">
-										{getStatusLabel(selectedEmail.responseStatus)}
-									</span>
-								</div>
-							</div>
-							
-							<div class="grid grid-cols-2 gap-4">
-								<div>
-									<div class="block text-sm font-medium text-gray-700">Created</div>
-									<p class="mt-1 text-sm text-gray-900">{formatDate(selectedEmail.createdAt)}</p>
-								</div>
-								<div>
-									<div class="block text-sm font-medium text-gray-700">Sent</div>
-									<p class="mt-1 text-sm text-gray-900">{selectedEmail.sentAt ? formatDate(selectedEmail.sentAt) : 'Not sent'}</p>
-								</div>
-							</div>
-							
-							{#if selectedEmail.personalNotes}
-								<div>
-									<div class="block text-sm font-medium text-gray-700">Personal Notes</div>
-									<p class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{selectedEmail.personalNotes}</p>
-								</div>
-							{/if}
-							
-							<div>
-								<div class="block text-sm font-medium text-gray-700">Email Content</div>
-								<div class="mt-1 border border-gray-300 rounded-md p-4 max-h-96 overflow-y-auto">
-									{@html selectedEmail.htmlContent}
-								</div>
-							</div>
-						</div>
-						
-						<div class="mt-6 flex justify-end">
-							<button
-								on:click={closeModals}
-								class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
-							>
-								Close
-							</button>
 						</div>
 					</div>
 				</div>
 			</div>
 		{/if}
 
-		<!-- Contact Frequency Modal -->
+		<!-- Contact Frequency Modal - Full Width -->
 		{#if showContactFrequencyModal && contactFrequencyData}
+			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div 
-				class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" 
+				class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 overflow-y-auto" 
 				role="dialog" 
 				aria-modal="true" 
 				aria-labelledby="frequency-modal-title"
-				tabindex="-1"
-				on:click={closeModals}
+				tabindex="0"
 				on:keydown={(e) => e.key === 'Escape' && closeModals()}
 			>
-				<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-				<!-- svelte-ignore a11y_click_events_have_key_events -->
-				<div 
-					class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white" 
-					role="document"
-					on:click|stopPropagation
-				>
-					<div class="mt-3">
-						<div class="flex items-center justify-between mb-4">
-							<h3 id="frequency-modal-title" class="text-lg font-medium text-gray-900">Contact Frequency - {contactFrequencyData.business?.name}</h3>
-							<button
-								on:click={closeModals}
-								class="text-gray-400 hover:text-gray-600"
-								aria-label="Close contact frequency modal"
-							>
-								<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-								</svg>
-							</button>
+				<div class="min-h-screen px-4 py-8">
+					<div class="max-w-7xl mx-auto bg-white rounded-lg shadow-xl">
+						<div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-lg z-10">
+							<div class="flex items-center justify-between">
+								<h3 id="frequency-modal-title" class="text-2xl font-bold text-gray-900">Contact Frequency - {contactFrequencyData.business?.name}</h3>
+								<button
+									on:click={closeModals}
+									class="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100"
+									aria-label="Close contact frequency modal"
+								>
+									<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+									</svg>
+								</button>
+							</div>
+							<p class="text-sm text-gray-500 mt-1">Press ESC to close</p>
 						</div>
+						
+						<div class="px-6 py-6">
 						
 						<!-- Statistics -->
 						<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -898,14 +1080,15 @@
 								</table>
 							</div>
 						</div>
-						
-						<div class="mt-6 flex justify-end">
-							<button
-								on:click={closeModals}
-								class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
-							>
-								Close
-							</button>
+							
+							<div class="mt-6 flex justify-end">
+								<button
+									on:click={closeModals}
+									class="px-6 py-3 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+								>
+									Close (ESC)
+								</button>
+							</div>
 						</div>
 					</div>
 				</div>

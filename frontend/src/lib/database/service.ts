@@ -183,7 +183,7 @@ export class DatabaseService {
      */
     public async updateResponseStatus(
         emailId: number,
-        status: 'no_response' | 'good_response' | 'bad_response'
+        status: 'unsent' | 'no_response' | 'good_response' | 'bad_response'
     ): Promise<void> {
         const stmt = this.db.prepare(`
       UPDATE emails 
@@ -257,6 +257,26 @@ export class DatabaseService {
         const row = stmt.get(id) as EmailRow | undefined;
 
         return row ? this.mapEmailRow(row) : null;
+    }
+
+    /**
+     * Delete an email
+     */
+    public async deleteEmail(emailId: number): Promise<void> {
+        const stmt = this.db.prepare('DELETE FROM emails WHERE id = ?');
+        stmt.run(emailId);
+    }
+
+    /**
+     * Update email HTML content
+     */
+    public async updateEmailContent(emailId: number, htmlContent: string): Promise<void> {
+        const stmt = this.db.prepare(`
+      UPDATE emails 
+      SET html_content = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+        stmt.run(htmlContent, emailId);
     }
 
     // Notes operations
@@ -414,7 +434,7 @@ export class DatabaseService {
             htmlContent: row.html_content,
             personalNotes: row.personal_notes || undefined,
             sendStatus: row.send_status as 'draft' | 'sent' | 'failed',
-            responseStatus: row.response_status as 'no_response' | 'good_response' | 'bad_response',
+            responseStatus: row.response_status as 'unsent' | 'no_response' | 'good_response' | 'bad_response',
             sentAt: row.sent_at ? new Date(row.sent_at) : undefined,
             createdAt: new Date(row.created_at),
             updatedAt: new Date(row.updated_at)

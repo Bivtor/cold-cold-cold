@@ -18,12 +18,12 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
         const { responseStatus } = await request.json();
 
         // Validate response status
-        const validResponseStatuses = ['no_response', 'good_response', 'bad_response'];
+        const validResponseStatuses = ['unsent', 'no_response', 'good_response', 'bad_response'];
         if (!responseStatus || !validResponseStatuses.includes(responseStatus)) {
             return json(
                 {
                     success: false,
-                    error: 'Invalid response status. Must be one of: no_response, good_response, bad_response'
+                    error: 'Invalid response status. Must be one of: unsent, no_response, good_response, bad_response'
                 },
                 { status: 400 }
             );

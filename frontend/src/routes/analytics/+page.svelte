@@ -228,39 +228,39 @@
 
 			<!-- Timeline Chart -->
 			{#if analyticsData.timeline.length > 0}
-				<div class="bg-white shadow rounded-lg p-6">
+				<div class="bg-white shadow rounded-lg p-6 ">
 					<h2 class="text-lg font-medium text-gray-900 mb-4">Email Activity Timeline</h2>
-					<div class="overflow-x-auto">
-						<div class="flex items-end space-x-2 h-40 min-w-full">
+					<div class="w-full ">
+						<div class="flex items-end justify-between space-x-1 h-64">
 							{#each analyticsData.timeline as day}
-								<div class="flex flex-col items-center min-w-0 flex-shrink-0">
-									<div class="flex flex-col items-center space-y-1 mb-2">
+								<div class="flex flex-col items-center flex-1 min-w-0">
+									<div class="flex flex-col items-center space-y-1 mb-2 w-full">
 										<!-- Total emails bar -->
 										<div 
-											class="bg-blue-500 rounded-t" 
-											style="height: {Math.max(4, (day.total / Math.max(...analyticsData.timeline.map((d: any) => d.total))) * 100)}px; width: 12px;"
-											title="{day.date}: {day.total} total emails"
+											class="bg-blue-500 rounded-t w-full max-w-[16px]" 
+											style="height: {Math.max(4, (day.total / Math.max(...analyticsData.timeline.map((d: any) => d.total))) * 180)}px;"
+											title="{new Date(day.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}: {day.total} total emails"
 										></div>
 										<!-- Sent emails bar -->
 										<div 
-											class="bg-green-500 rounded" 
-											style="height: {Math.max(2, (day.sent / Math.max(...analyticsData.timeline.map((d: any) => d.sent))) * 60)}px; width: 8px;"
-											title="{day.date}: {day.sent} sent emails"
+											class="bg-green-500 rounded w-3/4 max-w-[12px]" 
+											style="height: {Math.max(2, (day.sent / Math.max(...analyticsData.timeline.map((d: any) => d.sent))) * 120)}px;"
+											title="{new Date(day.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}: {day.sent} sent emails"
 										></div>
 										<!-- Responses bar -->
 										<div 
-											class="bg-purple-500 rounded" 
-											style="height: {Math.max(1, (day.responses / Math.max(...analyticsData.timeline.map((d: any) => d.responses))) * 40)}px; width: 6px;"
-											title="{day.date}: {day.responses} responses"
+											class="bg-purple-500 rounded w-1/2 max-w-[8px]" 
+											style="height: {Math.max(1, (day.responses / Math.max(...analyticsData.timeline.map((d: any) => d.responses))) * 80)}px;"
+											title="{new Date(day.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}: {day.responses} responses"
 										></div>
 									</div>
-									<div class="text-xs text-gray-500 transform rotate-45 origin-left whitespace-nowrap">
-										{formatDate(day.date)}
+									<div class="text-xs text-gray-500 transform rotate-45 origin-left whitespace-nowrap mt-2">
+										{new Date(day.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
 									</div>
 								</div>
 							{/each}
 						</div>
-						<div class="mt-4 flex items-center space-x-4 text-xs">
+						<div class="mt-12 flex items-center justify-center space-x-6 text-xs">
 							<div class="flex items-center">
 								<div class="w-3 h-3 bg-blue-500 rounded mr-1"></div>
 								<span>Total Emails</span>

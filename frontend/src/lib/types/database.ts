@@ -18,7 +18,7 @@ export interface Email {
     htmlContent: string;
     personalNotes?: string;
     sendStatus: 'draft' | 'sent' | 'failed';
-    responseStatus: 'no_response' | 'good_response' | 'bad_response';
+    responseStatus: 'unsent' | 'no_response' | 'good_response' | 'bad_response';
     sentAt?: Date;
     createdAt: Date;
     updatedAt: Date;
@@ -86,7 +86,7 @@ export interface NoteData {
 export interface EmailFilters {
     businessName?: string;
     sendStatus?: 'draft' | 'sent' | 'failed';
-    responseStatus?: 'no_response' | 'good_response' | 'bad_response';
+    responseStatus?: 'unsent' | 'no_response' | 'good_response' | 'bad_response';
     dateFrom?: Date;
     dateTo?: Date;
     limit?: number;

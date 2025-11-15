@@ -465,7 +465,7 @@
 
 <!-- Modal for creating/editing notes -->
 {#if showModal}
-	<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+	<div class="fixed inset-0 bg-opacity-50 flex items-center justify-center p-4 z-50">
 		<div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
 			<div class="p-6">
 				<h2 class="text-xl font-semibold text-gray-900 mb-4">

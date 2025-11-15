@@ -80,6 +80,11 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 
         const updateData = await request.json();
 
+        // Update HTML content if provided
+        if (updateData.htmlContent !== undefined) {
+            await db.updateEmailContent(emailId, updateData.htmlContent);
+        }
+
         // Validate and update send status
         if (updateData.sendStatus !== undefined) {
             const validSendStatuses = ['draft', 'sent', 'failed'];
@@ -99,12 +104,12 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 
         // Validate and update response status
         if (updateData.responseStatus !== undefined) {
-            const validResponseStatuses = ['no_response', 'good_response', 'bad_response'];
+            const validResponseStatuses = ['unsent', 'no_response', 'good_response', 'bad_response'];
             if (!validResponseStatuses.includes(updateData.responseStatus)) {
                 return json(
                     {
                         success: false,
-                        error: 'Invalid response status. Must be one of: no_response, good_response, bad_response'
+                        error: 'Invalid response status. Must be one of: unsent, no_response, good_response, bad_response'
                     },
                     { status: 400 }
                 );
@@ -131,6 +136,52 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
             {
                 success: false,
                 error: 'Failed to update email status'
+            },
+            { status: 500 }
+        );
+    }
+};
+
+export const DELETE: RequestHandler = async ({ params }) => {
+    try {
+        const emailId = parseInt(params.id, 10);
+        if (isNaN(emailId)) {
+            return json(
+                {
+                    success: false,
+                    error: 'Invalid email ID'
+                },
+                { status: 400 }
+            );
+        }
+
+        const db = DatabaseService.getInstance();
+
+        // Check if email exists
+        const existingEmail = await db.getEmailById(emailId);
+        if (!existingEmail) {
+            return json(
+                {
+                    success: false,
+                    error: 'Email not found'
+                },
+                { status: 404 }
+            );
+        }
+
+        // Delete the email
+        await db.deleteEmail(emailId);
+
+        return json({
+            success: true,
+            message: 'Email deleted successfully'
+        });
+    } catch (error) {
+        console.error('Error deleting email:', error);
+        return json(
+            {
+                success: false,
+                error: 'Failed to delete email'
             },
             { status: 500 }
         );

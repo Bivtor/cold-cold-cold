@@ -67,5 +67,6 @@ export const LoadingOperations = {
     LOADING_HISTORY: 'loading_history',
     UPDATING_STATUS: 'updating_status',
     SAVING_NOTE: 'saving_note',
-    DELETING_NOTE: 'deleting_note'
+    DELETING_NOTE: 'deleting_note',
+    DELETING_EMAIL: 'deleting_email'
 } as const;

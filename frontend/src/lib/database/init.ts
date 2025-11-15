@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS emails (
   html_content TEXT NOT NULL,
   personal_notes TEXT,
   send_status TEXT CHECK(send_status IN ('draft', 'sent', 'failed')) DEFAULT 'draft',
-  response_status TEXT CHECK(response_status IN ('no_response', 'good_response', 'bad_response')) DEFAULT 'no_response',
+  response_status TEXT CHECK(response_status IN ('unsent', 'no_response', 'good_response', 'bad_response')) DEFAULT 'unsent',
   sent_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -85,41 +85,41 @@ CREATE INDEX IF NOT EXISTS idx_email_analytics_timestamp ON email_analytics(time
  * @returns Database instance
  */
 export function initializeDatabase(dbPath: string): Database.Database {
-    // Create database connection
-    const db = new Database(dbPath);
+  // Create database connection
+  const db = new Database(dbPath);
 
-    // Enable foreign key constraints
-    db.pragma('foreign_keys = ON');
+  // Enable foreign key constraints
+  db.pragma('foreign_keys = ON');
 
-    // Set journal mode to WAL for better performance
-    db.pragma('journal_mode = WAL');
+  // Set journal mode to WAL for better performance
+  db.pragma('journal_mode = WAL');
 
-    // Split schema by statements and execute each one
-    const statements = SCHEMA_SQL
-        .split(';')
-        .map(stmt => stmt.trim())
-        .filter(stmt => stmt.length > 0);
+  // Split schema by statements and execute each one
+  const statements = SCHEMA_SQL
+    .split(';')
+    .map(stmt => stmt.trim())
+    .filter(stmt => stmt.length > 0);
 
-    for (const statement of statements) {
-        try {
-            db.exec(statement);
-        } catch (error) {
-            console.error('Error executing schema statement:', statement);
-            throw error;
-        }
+  for (const statement of statements) {
+    try {
+      db.exec(statement);
+    } catch (error) {
+      console.error('Error executing schema statement:', statement);
+      throw error;
     }
+  }
 
-    console.log('Database initialized successfully');
-    return db;
+  console.log('Database initialized successfully');
+  return db;
 }
 
 /**
  * Get database file path based on environment
  */
 export function getDatabasePath(): string {
-    const isDev = process.env.NODE_ENV === 'development';
-    const dbName = isDev ? 'cold_email_dev.db' : 'cold_email.db';
+  const isDev = process.env.NODE_ENV === 'development';
+  const dbName = isDev ? 'cold_email_dev.db' : 'cold_email.db';
 
-    // Store database in the data directory
-    return join(process.cwd(), 'data', dbName);
+  // Store database in the data directory
+  return join(process.cwd(), 'data', dbName);
 }

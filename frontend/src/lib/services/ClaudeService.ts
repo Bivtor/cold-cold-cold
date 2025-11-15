@@ -19,19 +19,10 @@ export class ClaudeService {
     private apiKey: string | null = null;
 
     constructor(apiKey?: string) {
-        this.apiKey = apiKey || this.getApiKeyFromEnv();
+        this.apiKey = apiKey || null;
         if (this.apiKey) {
             this.initializeClient();
         }
-    }
-
-    private getApiKeyFromEnv(): string | null {
-        // In SvelteKit, environment variables are available through $env/static/private
-        // For now, we'll check if it's available in the environment
-        if (typeof process !== 'undefined' && process.env) {
-            return process.env.ANTHROPIC_API_KEY || null;
-        }
-        return null;
     }
 
     private initializeClient(): void {
@@ -67,10 +58,10 @@ export class ClaudeService {
             return {
                 success: false,
                 error: {
-                    message: 'Claude API is not configured. Please set your API key.',
+                    message: 'Claude API is not configured. Please set your API key in the .env file.',
                     code: 'AI_API_ERROR',
                     retryable: false,
-                    suggestedAction: 'Add your Claude API key in the settings.'
+                    suggestedAction: 'Add CLAUDE_API_KEY to your .env file. Get an API key from console.anthropic.com.'
                 }
             };
         }
@@ -107,10 +98,10 @@ export class ClaudeService {
             return {
                 success: false,
                 error: {
-                    message: 'Claude API is not configured. Please set your API key.',
+                    message: 'Claude API is not configured. Please set your API key in the .env file.',
                     code: 'AI_API_ERROR',
                     retryable: false,
-                    suggestedAction: 'Add your Claude API key in the settings.'
+                    suggestedAction: 'Add CLAUDE_API_KEY to your .env file. Get an API key from console.anthropic.com.'
                 }
             };
         }
@@ -299,10 +290,10 @@ Return ONLY the refined email content without any additional formatting, explana
             return {
                 success: false,
                 error: {
-                    message: 'Claude API is not configured. Please set your API key.',
+                    message: 'Claude API is not configured. Please set your API key in the .env file.',
                     code: 'AI_API_ERROR',
                     retryable: false,
-                    suggestedAction: 'Add your Claude API key in the settings.'
+                    suggestedAction: 'Add CLAUDE_API_KEY to your .env file. Get an API key from console.anthropic.com.'
                 }
             };
         }
@@ -364,6 +355,3 @@ Return ONLY the subject line without quotes or additional text.`;
         this.apiKey = null;
     }
 }
-
-// Export a singleton instance
-export const claudeService = new ClaudeService();

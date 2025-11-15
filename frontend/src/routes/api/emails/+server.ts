@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { DatabaseService } from '$lib/database/service.js';
-import { zohoEmailService } from '$lib/services/index.js';
+import { ZohoEmailService } from '$lib/services/index.js';
+import { serverConfig } from '$lib/utils/env.server.js';
 import type { EmailFilters, EmailDraft } from '$lib/types/database.js';
 import type { RequestHandler } from './$types.js';
 
@@ -22,8 +23,8 @@ export const GET: RequestHandler = async ({ url }) => {
         }
 
         const responseStatus = url.searchParams.get('responseStatus');
-        if (responseStatus && ['no_response', 'good_response', 'bad_response'].includes(responseStatus)) {
-            filters.responseStatus = responseStatus as 'no_response' | 'good_response' | 'bad_response';
+        if (responseStatus && ['unsent', 'no_response', 'good_response', 'bad_response'].includes(responseStatus)) {
+            filters.responseStatus = responseStatus as 'unsent' | 'no_response' | 'good_response' | 'bad_response';
         }
 
         const dateFrom = url.searchParams.get('dateFrom');
@@ -105,6 +106,9 @@ export const POST: RequestHandler = async ({ request }) => {
         });
 
         try {
+            // Initialize ZohoEmailService with config from server
+            const zohoEmailService = new ZohoEmailService(serverConfig.zoho);
+
             // Send email via Zoho
             const sendResult = await zohoEmailService.sendEmail({
                 to: emailData.recipientEmail,

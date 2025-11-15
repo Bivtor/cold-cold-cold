@@ -56,6 +56,7 @@ export interface EmailGenerationRequest {
     personalNotes: string;
     promptTemplate: string;
     businessContext: string;
+    business_name?: string;
 }
 
 export interface EmailData {
@@ -76,9 +77,5 @@ export interface UserFriendlyError {
 // Re-export email template types
 export type {
     EmailTemplate,
-    EmailTemplateData,
-    RenderedEmail,
-    TemplateCustomization,
-    PlaceholderKey
+    RenderedEmail
 } from './email-template.js';
-export { TEMPLATE_PLACEHOLDERS } from './email-template.js';

@@ -10,10 +10,6 @@
 	let senderCompany = '';
 	let senderEmail = '';
 	let senderPhone = '';
-	let claudeApiKey = '';
-	let zohoClientId = '';
-	let zohoClientSecret = '';
-	let zohoRefreshToken = '';
 
 	// UI state - removed local loading/error states, using global notification system
 
@@ -22,33 +18,24 @@
 	});
 
 	async function loadSettings() {
-		// Load settings from localStorage or API
-		// For now, we'll use localStorage
+		// Load settings from localStorage
 		senderName = localStorage.getItem('senderName') || '';
 		senderTitle = localStorage.getItem('senderTitle') || '';
 		senderCompany = localStorage.getItem('senderCompany') || '';
 		senderEmail = localStorage.getItem('senderEmail') || '';
 		senderPhone = localStorage.getItem('senderPhone') || '';
-		claudeApiKey = localStorage.getItem('claudeApiKey') || '';
-		zohoClientId = localStorage.getItem('zohoClientId') || '';
-		zohoClientSecret = localStorage.getItem('zohoClientSecret') || '';
-		zohoRefreshToken = localStorage.getItem('zohoRefreshToken') || '';
 	}
 
 	async function saveSettings() {
 		loading.start(LoadingOperations.SAVING_SETTINGS);
 
 		try {
-			// Save to localStorage for now
+			// Save to localStorage
 			localStorage.setItem('senderName', senderName);
 			localStorage.setItem('senderTitle', senderTitle);
 			localStorage.setItem('senderCompany', senderCompany);
 			localStorage.setItem('senderEmail', senderEmail);
 			localStorage.setItem('senderPhone', senderPhone);
-			localStorage.setItem('claudeApiKey', claudeApiKey);
-			localStorage.setItem('zohoClientId', zohoClientId);
-			localStorage.setItem('zohoClientSecret', zohoClientSecret);
-			localStorage.setItem('zohoRefreshToken', zohoRefreshToken);
 
 			NotificationService.showOperationSuccess('settings_save');
 		} catch (err) {
@@ -77,7 +64,7 @@
 
 <MainLayout 
 	title="Settings" 
-	description="Configure your sender information and API credentials"
+	description="Configure your sender information"
 >
 	<div class="p-6">
 		<!-- Messages -->
@@ -153,82 +140,6 @@
 							placeholder="+1 (555) 123-4567"
 							class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
 						/>
-					</div>
-				</div>
-			</div>
-
-			<!-- API Configuration -->
-			<div class="bg-white border border-gray-200 rounded-lg p-6">
-				<h2 class="text-lg font-medium text-gray-900 mb-4">API Configuration</h2>
-				<p class="text-sm text-gray-600 mb-6">Configure your API keys for Claude AI and Zoho email services.</p>
-				
-				<div class="space-y-6">
-					<!-- Claude API -->
-					<div>
-						<h3 class="text-md font-medium text-gray-900 mb-3">Claude AI API</h3>
-						<div>
-							<label for="claude-api-key" class="block text-sm font-medium text-gray-700 mb-2">
-								API Key <span class="text-red-500">*</span>
-							</label>
-							<input
-								id="claude-api-key"
-								type="password"
-								bind:value={claudeApiKey}
-								placeholder="sk-ant-api03-..."
-								class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-							/>
-							<p class="mt-1 text-xs text-gray-500">
-								Get your API key from <a href="https://console.anthropic.com/" target="_blank" class="text-blue-600 hover:text-blue-800">Anthropic Console</a>
-							</p>
-						</div>
-					</div>
-
-					<!-- Zoho API -->
-					<div>
-						<h3 class="text-md font-medium text-gray-900 mb-3">Zoho Mail API</h3>
-						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-							<div>
-								<label for="zoho-client-id" class="block text-sm font-medium text-gray-700 mb-2">
-									Client ID <span class="text-red-500">*</span>
-								</label>
-								<input
-									id="zoho-client-id"
-									type="text"
-									bind:value={zohoClientId}
-									placeholder="1000.XXXXXXXXXX.XXXXXXXXXX"
-									class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-								/>
-							</div>
-							
-							<div>
-								<label for="zoho-client-secret" class="block text-sm font-medium text-gray-700 mb-2">
-									Client Secret <span class="text-red-500">*</span>
-								</label>
-								<input
-									id="zoho-client-secret"
-									type="password"
-									bind:value={zohoClientSecret}
-									placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-									class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-								/>
-							</div>
-							
-							<div class="md:col-span-2">
-								<label for="zoho-refresh-token" class="block text-sm font-medium text-gray-700 mb-2">
-									Refresh Token <span class="text-red-500">*</span>
-								</label>
-								<input
-									id="zoho-refresh-token"
-									type="password"
-									bind:value={zohoRefreshToken}
-									placeholder="1000.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-									class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-								/>
-								<p class="mt-1 text-xs text-gray-500">
-									Configure your Zoho app at <a href="https://api-console.zoho.com/" target="_blank" class="text-blue-600 hover:text-blue-800">Zoho API Console</a>
-								</p>
-							</div>
-						</div>
 					</div>
 				</div>
 			</div>

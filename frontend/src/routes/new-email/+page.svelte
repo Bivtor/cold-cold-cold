@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { MainLayout, LoadingSpinner } from '$lib/components';
-	import type { ScrapedData, EmailGenerationRequest, EmailTemplateData, RenderedEmail } from '$lib/types/index.js';
+	import type { ScrapedData, EmailGenerationRequest, RenderedEmail } from '$lib/types/index.js';
 	import { EmailTemplateService, NotificationService } from '$lib/services/index.js';
 	import { loading, LoadingOperations } from '$lib/stores/loading.js';
 	import type { ScrapingResult } from '$lib/services/WebScraperService.js';
 	import type { ClaudeServiceResult } from '$lib/services/index.js';
+	import { onMount } from 'svelte';
 
 	// Form state
 	let manualContent = '';
@@ -20,15 +21,20 @@
 	let editableEmailContent = '';
 
 	// Sender information for email template
-	let senderName = 'Your Name';
-	let senderTitle = 'Your Title';
-	let senderCompany = 'Your Company';
-	let senderEmail = 'your.email@company.com';
+	let senderName = '';
+	let senderTitle = '';
+	let senderCompany = '';
+	let senderEmail = '';
 	let senderPhone = '';
 
 	// Recipient information
-	let recipientName = '';
 	let recipientCompany = '';
+	let recipientEmail = '';
+	let emailSubject = '';
+	
+	// Template selection
+	let selectedTemplateId = 'default';
+	let availableTemplates: any[] = [];
 
 	// UI state
 	let showScrapedContent = false;
@@ -42,9 +48,94 @@
 	// Services
 	const emailTemplateService = new EmailTemplateService();
 
+	// Reactive statements to save form data to localStorage
+	$: if (typeof window !== 'undefined') {
+		localStorage.setItem('newEmail_websiteUrl', websiteUrl);
+		localStorage.setItem('newEmail_recipientCompany', recipientCompany);
+		localStorage.setItem('newEmail_recipientEmail', recipientEmail);
+		localStorage.setItem('newEmail_emailSubject', emailSubject);
+		localStorage.setItem('newEmail_selectedTemplateId', selectedTemplateId);
+	}
+
+	// Load sender information from settings on mount
+	onMount(() => {
+		loadSenderSettings();
+		loadFormData();
+		loadTemplates();
+	});
+	
+	function loadTemplates() {
+		availableTemplates = emailTemplateService.getAllTemplates();
+		// Load custom templates from localStorage
+		const savedTemplates = localStorage.getItem('customTemplates');
+		if (savedTemplates) {
+			try {
+				const customTemplates = JSON.parse(savedTemplates);
+				customTemplates.forEach((t: any) => emailTemplateService.saveTemplate(t));
+				availableTemplates = emailTemplateService.getAllTemplates();
+			} catch (e) {
+				console.error('Failed to load custom templates:', e);
+			}
+		}
+	}
+
+	function loadSenderSettings() {
+		senderName = localStorage.getItem('senderName') || '';
+		senderTitle = localStorage.getItem('senderTitle') || '';
+		senderCompany = localStorage.getItem('senderCompany') || '';
+		senderEmail = localStorage.getItem('senderEmail') || '';
+		senderPhone = localStorage.getItem('senderPhone') || '';
+	}
+
+	function loadFormData() {
+		// Load form values from localStorage
+		manualContent = localStorage.getItem('newEmail_manualContent') || '';
+		websiteUrl = localStorage.getItem('newEmail_websiteUrl') || '';
+		personalNotes = localStorage.getItem('newEmail_personalNotes') || '';
+		recipientCompany = localStorage.getItem('newEmail_recipientCompany') || '';
+		recipientEmail = localStorage.getItem('newEmail_recipientEmail') || '';
+		emailSubject = localStorage.getItem('newEmail_emailSubject') || '';
+		selectedTemplateId = localStorage.getItem('newEmail_selectedTemplateId') || 'default';
+		
+		// Load scraped data if exists
+		const savedScrapedData = localStorage.getItem('newEmail_scrapedData');
+		if (savedScrapedData) {
+			try {
+				scrapedData = JSON.parse(savedScrapedData);
+				showScrapedContent = true;
+			} catch (e) {
+				console.error('Failed to parse saved scraped data:', e);
+			}
+		}
+		
+		// Update combined content if manual content exists
+		if (manualContent.trim()) {
+			updateCombinedContent();
+		}
+	}
+
+	function saveFormData() {
+		// Save form values to localStorage
+		localStorage.setItem('newEmail_manualContent', manualContent);
+		localStorage.setItem('newEmail_websiteUrl', websiteUrl);
+		localStorage.setItem('newEmail_personalNotes', personalNotes);
+		localStorage.setItem('newEmail_recipientCompany', recipientCompany);
+		localStorage.setItem('newEmail_recipientEmail', recipientEmail);
+		localStorage.setItem('newEmail_emailSubject', emailSubject);
+		localStorage.setItem('newEmail_selectedTemplateId', selectedTemplateId);
+		
+		// Save scraped data if exists
+		if (scrapedData) {
+			localStorage.setItem('newEmail_scrapedData', JSON.stringify(scrapedData));
+		} else {
+			localStorage.removeItem('newEmail_scrapedData');
+		}
+	}
+
 	// Handle manual content input (primary method)
 	function handleManualContentChange() {
 		updateCombinedContent();
+		saveFormData();
 	}
 
 	// Handle website URL scraping (optional secondary method)
@@ -81,6 +172,12 @@
 				if (result.data.businessName) {
 					recipientCompany = result.data.businessName;
 				}
+				if (result.data.contactInfo?.email) {
+					recipientEmail = result.data.contactInfo.email;
+				}
+
+				// Save to localStorage
+				saveFormData();
 
 				// Show success notification
 				NotificationService.showOperationSuccess('scraping');
@@ -148,6 +245,7 @@
 		}
 
 		updateCombinedContent();
+		saveFormData();
 	}
 
 	// Generate email using Claude AI
@@ -172,8 +270,9 @@
 				manualContent: manualContent.trim() || undefined,
 				scrapedData: scrapedData || undefined,
 				personalNotes: personalNotes.trim(),
-				promptTemplate: 'Generate a professional cold email',
-				businessContext: combinedContent
+				promptTemplate: `Generate a professional cold email. Use HTML formatting for structure (paragraphs with <p> tags, line breaks with <br>, etc.) but DO NOT include any CSS styling. Write complete, natural sentences - never use placeholders like [your_name_here] or [company_name]. The recipient company name is: ${recipientCompany}`,
+				businessContext: combinedContent,
+				business_name: recipientCompany
 			};
 
 			const response = await fetch('/api/generate-email', {
@@ -189,6 +288,12 @@
 			if (result.success && result.data) {
 				generatedEmailContent = result.data;
 				editableEmailContent = result.data;
+				
+				// Generate a default subject if not provided
+				if (!emailSubject.trim()) {
+					emailSubject = `Partnership Opportunity with ${recipientCompany || 'Your Company'}`;
+				}
+				
 				renderEmailWithTemplate();
 				showEmailPreview = true;
 
@@ -210,21 +315,8 @@
 	// Render email with HTML template
 	function renderEmailWithTemplate() {
 		try {
-			const templateData: EmailTemplateData = {
-				recipientName: recipientName || undefined,
-				recipientCompany: recipientCompany || undefined,
-				senderName,
-				senderTitle: senderTitle || undefined,
-				senderCompany,
-				senderEmail,
-				senderPhone: senderPhone || undefined,
-				customContent: editableEmailContent,
-				callToActionText: 'Would you be available for a brief call to discuss this opportunity?',
-				unsubscribeUrl: 'https://yourcompany.com/unsubscribe'
-			};
-
-			const defaultTemplate = emailTemplateService.getDefaultTemplate();
-			renderedEmail = emailTemplateService.renderEmail(defaultTemplate.id, templateData);
+			// Simply render the email content with the selected template
+			renderedEmail = emailTemplateService.renderEmail(selectedTemplateId, editableEmailContent, recipientCompany);
 		} catch (error) {
 			console.error('Template rendering error:', error);
 			generationError = 'Failed to render email template';
@@ -258,6 +350,70 @@
 		showSendConfirmation = false;
 	}
 
+	// Save as draft
+	async function saveAsDraft() {
+		if (!renderedEmail?.htmlContent) {
+			NotificationService.showWarning('No Email Content', 'Please generate an email first');
+			return;
+		}
+
+		if (!recipientCompany) {
+			NotificationService.showWarning('Missing Recipient', 'Please specify the recipient company');
+			return;
+		}
+
+		loading.start(LoadingOperations.SENDING_EMAIL);
+
+		try {
+			// First, create or find the business
+			const businessResponse = await fetch('/api/businesses', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					name: recipientCompany,
+					contactEmail: recipientEmail || scrapedData?.contactInfo?.email,
+					websiteUrl: websiteUrl || undefined,
+					description: manualContent || undefined,
+					scrapedData: scrapedData || undefined
+				})
+			});
+
+			const businessResult = await businessResponse.json();
+
+			if (!businessResult.success) {
+				throw new Error('Failed to create business record');
+			}
+
+			// Save draft email
+			const draftResponse = await fetch('/api/emails/drafts', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					businessId: businessResult.businessId,
+					subject: emailSubject || `Partnership Opportunity with ${recipientCompany}`,
+					htmlContent: renderedEmail.htmlContent,
+					personalNotes: personalNotes || undefined
+				})
+			});
+
+			const draftResult = await draftResponse.json();
+
+			if (draftResult.success) {
+				NotificationService.showSuccess('Draft Saved', 'Your email has been saved as a draft');
+			} else {
+				throw new Error(draftResult.error || 'Failed to save draft');
+			}
+		} catch (error) {
+			NotificationService.handleError(error as Error, 'save draft');
+		} finally {
+			loading.stop(LoadingOperations.SENDING_EMAIL);
+		}
+	}
+
 	// Send email
 	async function sendEmail() {
 		if (!renderedEmail?.htmlContent) {
@@ -270,16 +426,44 @@
 			return;
 		}
 
+		if (!recipientEmail && !scrapedData?.contactInfo?.email) {
+			NotificationService.showWarning('Missing Email', 'Please specify the recipient email address');
+			return;
+		}
+
 		loading.start(LoadingOperations.SENDING_EMAIL);
 		
 		// Show operation start notification
 		NotificationService.showOperationStart('email_sending');
 
 		try {
+			// First, create or find the business
+			const businessResponse = await fetch('/api/businesses', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					name: recipientCompany,
+					contactEmail: recipientEmail || scrapedData?.contactInfo?.email,
+					websiteUrl: websiteUrl || undefined,
+					description: manualContent || undefined,
+					scrapedData: scrapedData || undefined
+				})
+			});
+
+			const businessResult = await businessResponse.json();
+
+			if (!businessResult.success) {
+				throw new Error('Failed to create business record');
+			}
+
 			const emailData = {
-				to: scrapedData?.contactInfo?.email || 'contact@' + recipientCompany.toLowerCase().replace(/\s+/g, '') + '.com',
-				subject: `Partnership Opportunity with ${senderCompany}`,
+				businessId: businessResult.businessId,
+				recipientEmail: recipientEmail || scrapedData?.contactInfo?.email,
+				subject: emailSubject || `Partnership Opportunity with ${recipientCompany}`,
 				htmlContent: renderedEmail.htmlContent,
+				personalNotes: personalNotes || undefined,
 				fromName: senderName,
 				fromEmail: senderEmail
 			};
@@ -321,10 +505,23 @@
 		generatedEmailContent = '';
 		renderedEmail = null;
 		editableEmailContent = '';
-		recipientName = '';
 		recipientCompany = '';
+		recipientEmail = '';
 		showScrapedContent = false;
 		showEmailPreview = false;
+		
+		// Clear localStorage (but keep subject and template for reuse)
+		clearFormDataFromStorage();
+	}
+
+	function clearFormDataFromStorage() {
+		localStorage.removeItem('newEmail_manualContent');
+		localStorage.removeItem('newEmail_websiteUrl');
+		localStorage.removeItem('newEmail_personalNotes');
+		localStorage.removeItem('newEmail_recipientCompany');
+		localStorage.removeItem('newEmail_recipientEmail');
+		localStorage.removeItem('newEmail_scrapedData');
+		// Keep subject and template for reuse
 	}
 
 	// Clear all form data
@@ -343,8 +540,11 @@
 		showSendConfirmation = false;
 		scrapingError = '';
 		generationError = '';
-		recipientName = '';
 		recipientCompany = '';
+		recipientEmail = '';
+		
+		// Clear localStorage (but keep subject and template for reuse)
+		clearFormDataFromStorage();
 	}
 </script>
 
@@ -476,6 +676,11 @@
 						<textarea
 							id="personal-notes"
 							bind:value={personalNotes}
+							on:input={() => {
+								if (typeof window !== 'undefined') {
+									localStorage.setItem('newEmail_personalNotes', personalNotes);
+								}
+							}}
 							placeholder="Add your personal insights, analysis, or specific talking points about this business. What value can you offer them? What problems might they have that you can solve?"
 							rows="4"
 							class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 resize-vertical"
@@ -483,6 +688,87 @@
 						<p class="mt-1 text-xs text-gray-500">
 							Your personal analysis and insights about the business that will help create a more targeted email.
 						</p>
+					</div>
+				</div>
+
+				<!-- Recipient Information -->
+				<div class="space-y-4 border-t pt-6">
+					<h3 class="text-lg font-medium text-gray-900">Recipient Information</h3>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div>
+							<label for="recipient-company" class="block text-sm font-medium text-gray-700 mb-1">
+								Recipient Company <span class="text-red-500">*</span>
+							</label>
+							<input
+								id="recipient-company"
+								type="text"
+								bind:value={recipientCompany}
+								placeholder="Acme Corporation"
+								class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+							/>
+							<p class="mt-1 text-xs text-gray-500">
+								This will be used as the business name in your email template
+							</p>
+						</div>
+						
+						<div>
+							<label for="recipient-email" class="block text-sm font-medium text-gray-700 mb-1">
+								Recipient Email <span class="text-red-500">*</span>
+							</label>
+							<input
+								id="recipient-email"
+								type="email"
+								bind:value={recipientEmail}
+								placeholder="contact@acme.com"
+								class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+							/>
+						</div>
+					</div>
+				</div>
+
+				<!-- Email Configuration -->
+				<div class="space-y-4 border-t pt-6">
+					<h3 class="text-lg font-medium text-gray-900">Email Configuration</h3>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div class="md:col-span-2">
+							<label for="email-subject" class="block text-sm font-medium text-gray-700 mb-1">
+								Email Subject
+							</label>
+							<input
+								id="email-subject"
+								type="text"
+								bind:value={emailSubject}
+								placeholder="Partnership Opportunity"
+								class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+							/>
+							<p class="mt-1 text-xs text-gray-500">
+								Subject is saved for reuse. Leave blank to use auto-generated subject.
+							</p>
+						</div>
+						
+						<div class="md:col-span-2">
+							<label for="template-selector" class="block text-sm font-medium text-gray-700 mb-1">
+								Email Template
+							</label>
+							<div class="flex space-x-3">
+								<select
+									id="template-selector"
+									bind:value={selectedTemplateId}
+									class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+								>
+									{#each availableTemplates as template}
+										<option value={template.id}>{template.name}</option>
+									{/each}
+								</select>
+								<a
+									href="/templates"
+									target="_blank"
+									class="px-4 py-2 text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+								>
+									Manage Templates
+								</a>
+							</div>
+						</div>
 					</div>
 				</div>
 
@@ -554,19 +840,6 @@
 								class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
 							/>
 						</div>
-						
-						<div>
-							<label for="recipient-name" class="block text-sm font-medium text-gray-700 mb-1">
-								Recipient Name
-							</label>
-							<input
-								id="recipient-name"
-								type="text"
-								bind:value={recipientName}
-								placeholder="Jane Smith"
-								class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-							/>
-						</div>
 					</div>
 				</div>
 
@@ -607,10 +880,33 @@
 				<div class="p-6">
 					<!-- Email Subject -->
 					<div class="mb-6">
-						<p class="block text-sm font-medium text-gray-700 mb-2">Subject Line</p>
-						<div class="bg-gray-50 p-3 rounded-md border">
-							<p class="text-sm font-medium text-gray-900">{renderedEmail.subject}</p>
-						</div>
+						<label for="preview-subject" class="block text-sm font-medium text-gray-700 mb-2">
+							Subject Line
+						</label>
+						<input
+							id="preview-subject"
+							type="text"
+							bind:value={emailSubject}
+							placeholder="Partnership Opportunity"
+							class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+						/>
+						<p class="mt-1 text-xs text-gray-500">
+							Edit the subject line. It will be saved for reuse.
+						</p>
+					</div>
+					
+					<!-- Recipient Email -->
+					<div class="mb-6">
+						<label for="preview-to" class="block text-sm font-medium text-gray-700 mb-2">
+							To
+						</label>
+						<input
+							id="preview-to"
+							type="email"
+							bind:value={recipientEmail}
+							placeholder="recipient@company.com"
+							class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+						/>
 					</div>
 
 					<!-- Email Content Editing -->
@@ -689,6 +985,13 @@
 									Edit Email
 								</button>
 								<button
+									on:click={saveAsDraft}
+									disabled={$loading[LoadingOperations.SENDING_EMAIL]}
+									class="px-4 py-2 text-yellow-700 bg-yellow-100 rounded-md hover:bg-yellow-200 focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+								>
+									Save as Draft
+								</button>
+								<button
 									on:click={showSendModal}
 									class="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
 								>
@@ -716,14 +1019,19 @@
 							<p class="text-sm text-gray-500">
 								Are you ready to send this email? Make sure all the information is correct.
 							</p>
-							{#if recipientCompany}
+							{#if recipientEmail}
 								<p class="text-sm text-gray-700 mt-2">
-									<strong>To:</strong> {recipientCompany}
+									<strong>To:</strong> {recipientEmail}
 								</p>
 							{/if}
-							{#if renderedEmail}
+							{#if recipientCompany}
 								<p class="text-sm text-gray-700">
-									<strong>Subject:</strong> {renderedEmail.subject}
+									<strong>Company:</strong> {recipientCompany}
+								</p>
+							{/if}
+							{#if emailSubject}
+								<p class="text-sm text-gray-700">
+									<strong>Subject:</strong> {emailSubject}
 								</p>
 							{/if}
 						</div>

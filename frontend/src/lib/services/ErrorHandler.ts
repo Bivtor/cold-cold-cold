@@ -118,7 +118,7 @@ export class ErrorHandler {
                 message: 'Claude API authentication failed. Please check your API key configuration.',
                 code: ErrorCode.AI_API_ERROR,
                 retryable: false,
-                suggestedAction: 'Verify your Claude API key is correct and active in the settings. You can get an API key from console.anthropic.com.'
+                suggestedAction: 'Verify your CLAUDE_API_KEY is correct and active in the .env file. You can get an API key from console.anthropic.com.'
             };
         }
 
@@ -309,7 +309,7 @@ export class ErrorHandler {
                 message: 'Zoho email service is not properly configured.',
                 code: ErrorCode.EMAIL_AUTH_ERROR,
                 retryable: false,
-                suggestedAction: 'Complete your Zoho email service configuration in the settings.'
+                suggestedAction: 'Add ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN, and ZOHO_EMAIL_ADDRESS to your .env file.'
             };
         }
 

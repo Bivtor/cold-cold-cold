@@ -1,14 +1,15 @@
 import type { EmailData, UserFriendlyError } from '../types/index.js';
 import { ErrorHandler, retryWithBackoff } from './ErrorHandler.js';
-// Fallback config for local development
-const config = {
-    zoho: {
-        clientId: '',
-        clientSecret: '',
-        refreshToken: '',
-        emailAddress: 'test@example.com',
-    }
-};
+
+// Configuration interface - will be injected from server-side
+interface ZohoConfig {
+    clientId: string;
+    clientSecret: string;
+    refreshToken: string;
+    emailAddress: string;
+}
+
+let zohoConfig: ZohoConfig | null = null;
 
 export interface ZohoEmailServiceResult {
     success: boolean;
@@ -45,18 +46,29 @@ export class ZohoEmailService {
     private tokenExpiry: Date | null = null;
     private readonly baseUrl = 'https://mail.zoho.com/api';
     private readonly authUrl = 'https://accounts.zoho.com/oauth/v2/token';
+    private config: ZohoConfig | null = null;
 
-    constructor() {
-        // Don't validate configuration on construction to avoid build errors
-        // Configuration will be validated when actually using the service
+    constructor(config?: ZohoConfig) {
+        // Configuration can be injected from server-side
+        this.config = config || zohoConfig;
+    }
+
+    /**
+     * Set configuration (for server-side use)
+     */
+    setConfig(config: ZohoConfig): void {
+        this.config = config;
     }
 
     /**
      * Validate that all required Zoho configuration is present
      */
     private validateConfiguration(): void {
+        if (!this.config) {
+            throw new Error('Zoho configuration not set');
+        }
         const required = ['clientId', 'clientSecret', 'refreshToken', 'emailAddress'];
-        const missing = required.filter(key => !config.zoho[key as keyof typeof config.zoho]);
+        const missing = required.filter(key => !this.config![key as keyof ZohoConfig]);
 
         if (missing.length > 0) {
             throw new Error(`Missing Zoho configuration: ${missing.join(', ')}`);
@@ -83,10 +95,10 @@ export class ZohoEmailService {
             return {
                 success: false,
                 error: {
-                    message: 'Zoho email service is not configured. Please set your API credentials.',
+                    message: 'Zoho email service is not configured. Please set your API credentials in the .env file.',
                     code: 'EMAIL_AUTH_ERROR',
                     retryable: false,
-                    suggestedAction: 'Add your Zoho API credentials in the settings.'
+                    suggestedAction: 'Add ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN, and ZOHO_EMAIL_ADDRESS to your .env file.'
                 }
             };
         }
@@ -210,10 +222,13 @@ export class ZohoEmailService {
      * Refresh the access token using the refresh token
      */
     private async refreshAccessToken(): Promise<void> {
+        if (!this.config) {
+            throw new Error('Zoho configuration not set');
+        }
         const params = new URLSearchParams({
-            refresh_token: config.zoho.refreshToken,
-            client_id: config.zoho.clientId,
-            client_secret: config.zoho.clientSecret,
+            refresh_token: this.config.refreshToken,
+            client_id: this.config.clientId,
+            client_secret: this.config.clientSecret,
             grant_type: 'refresh_token'
         });
 
@@ -283,7 +298,10 @@ export class ZohoEmailService {
         // For Zoho, the account ID is typically derived from the email domain
         // This is a simplified implementation - in production, you might need to
         // fetch this from the Zoho API or configure it separately
-        const domain = config.zoho.emailAddress.split('@')[1];
+        if (!this.config) {
+            throw new Error('Zoho configuration not set');
+        }
+        const domain = this.config.emailAddress.split('@')[1];
         return domain.replace('.', '_');
     }
 
@@ -492,6 +510,3 @@ export class ZohoEmailService {
         this.tokenExpiry = null;
     }
 }
-
-// Export a singleton instance
-export const zohoEmailService = new ZohoEmailService();

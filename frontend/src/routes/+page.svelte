@@ -35,16 +35,29 @@
 			</a>
 			
 			<a
-				href="/notes"
+				href="/templates"
 				class="block p-6 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors duration-150 ease-in-out"
 			>
 				<div class="flex items-center">
 					<svg class="h-8 w-8 text-green-600 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+					</svg>
+					<h2 class="text-xl font-semibold text-green-900">Templates</h2>
+				</div>
+				<p class="text-green-700 mt-2">Create and manage email templates</p>
+			</a>
+			
+			<a
+				href="/notes"
+				class="block p-6 bg-yellow-50 border border-yellow-200 rounded-lg hover:bg-yellow-100 transition-colors duration-150 ease-in-out"
+			>
+				<div class="flex items-center">
+					<svg class="h-8 w-8 text-yellow-600 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
 					</svg>
-					<h2 class="text-xl font-semibold text-green-900">Notes Panel</h2>
+					<h2 class="text-xl font-semibold text-yellow-900">Notes Panel</h2>
 				</div>
-				<p class="text-green-700 mt-2">Manage AI prompt templates and personal notes</p>
+				<p class="text-yellow-700 mt-2">Manage AI prompt templates and personal notes</p>
 			</a>
 			
 			<a
